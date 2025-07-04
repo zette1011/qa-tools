@@ -84,13 +84,33 @@
   const stripStyles = (html) => {
     const div = document.createElement('div');
     div.innerHTML = html;
+  
+    // Remove spans with internal GUIDs from Google Docs
+    div.querySelectorAll('span[id^="docs-internal-guid"]').forEach(el => el.remove());
+  
+    // Remove all comment nodes like <!-- x-tinymce/html -->
+    const removeComments = (node) => {
+      for (let i = node.childNodes.length - 1; i >= 0; i--) {
+        const child = node.childNodes[i];
+        if (child.nodeType === Node.COMMENT_NODE) {
+          node.removeChild(child);
+        } else if (child.nodeType === Node.ELEMENT_NODE) {
+          removeComments(child);
+        }
+      }
+    };
+    removeComments(div);
+  
+    // Remove inline styles and background colors
     div.querySelectorAll('*').forEach(el => {
       el.style.background = '';
       el.style.backgroundColor = '';
       el.removeAttribute('style');
     });
+  
     return div.innerHTML.trim();
   };
+
 
   const leftText = stripStyles(document.getElementById('leftEditor').innerHTML);
   const rightText = stripStyles(document.getElementById('rightEditor').innerHTML);
