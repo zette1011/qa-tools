@@ -40,89 +40,91 @@
   `;
   document.body.appendChild(modal);
 
-  function stripHighlights(html) {
-    const div = document.createElement('div');
-    div.innerHTML = html;
-    div.querySelectorAll('[style*="background"], span[style*="background-color"], mark').forEach(el => el.replaceWith(...el.childNodes));
-    return div.innerHTML;
+  function stripStyles(el) {
+    el.querySelectorAll('[style], mark').forEach(e => e.replaceWith(...e.childNodes));
   }
 
-  function syncScroll(leftBox, rightBox) {
-    leftBox.addEventListener('scroll', () => {
-      rightBox.scrollTop = leftBox.scrollTop;
-      rightBox.scrollLeft = leftBox.scrollLeft;
-    });
-    rightBox.addEventListener('scroll', () => {
-      leftBox.scrollTop = rightBox.scrollTop;
-      leftBox.scrollLeft = rightBox.scrollLeft;
-    });
+  function tokenizeWords(str) {
+    return str.split(/(\s+|\b)/).filter(Boolean);
   }
 
-  function tokenize(text) {
-    return text.split(/(\b|\s+)/).filter(t => t.length > 0);
-  }
-
-  function createDiffHTML(tokens1, tokens2, cls) {
-    const len = Math.max(tokens1.length, tokens2.length);
-    let html1 = '', html2 = '';
+  function diffWords(w1, w2) {
+    const len = Math.max(w1.length, w2.length);
+    let result1 = '', result2 = '';
     for (let i = 0; i < len; i++) {
-      const t1 = tokens1[i] || '';
-      const t2 = tokens2[i] || '';
-      if (t1 === t2) {
-        html1 += t1;
-        html2 += t2;
+      const a = w1[i] || '', b = w2[i] || '';
+      if (a === b) {
+        result1 += a;
+        result2 += b;
       } else {
-        html1 += `<mark class="${cls}">${t1}</mark>`;
-        html2 += `<mark class="${cls}">${t2}</mark>`;
+        result1 += `<mark class="edited">${a}</mark>`;
+        result2 += `<mark class="edited">${b}</mark>`;
       }
     }
-    return [html1, html2];
+    return [result1, result2];
   }
 
-  function compareHTML(leftHTML, rightHTML) {
-    const lDiv = document.createElement('div');
-    const rDiv = document.createElement('div');
-    lDiv.innerHTML = leftHTML;
-    rDiv.innerHTML = rightHTML;
-
-    const lText = lDiv.innerText.trim().split(/\n+/);
-    const rText = rDiv.innerText.trim().split(/\n+/);
-
-    const max = Math.max(lText.length, rText.length);
-    let leftResult = '', rightResult = '';
+  function diffElements(el1, el2) {
+    const leftChildren = el1.childNodes;
+    const rightChildren = el2.childNodes;
+    const max = Math.max(leftChildren.length, rightChildren.length);
 
     for (let i = 0; i < max; i++) {
-      const line1 = lText[i] || '';
-      const line2 = rText[i] || '';
-      if (line1 === line2) {
-        leftResult += line1 + '<br>';
-        rightResult += line2 + '<br>';
-      } else if (!line1 && line2) {
-        rightResult += `<mark class="added">${line2}</mark><br>`;
-        leftResult += '<br>';
-      } else if (line1 && !line2) {
-        leftResult += `<mark class="removed">${line1}</mark><br>`;
-        rightResult += '<br>';
-      } else {
-        const [diffL, diffR] = createDiffHTML(tokenize(line1), tokenize(line2), 'edited');
-        leftResult += diffL + '<br>';
-        rightResult += diffR + '<br>';
+      const l = leftChildren[i];
+      const r = rightChildren[i];
+
+      if (!l && r) {
+        el2.replaceChild(wrapAll(r, 'added'), r);
+        continue;
+      }
+      if (l && !r) {
+        el1.replaceChild(wrapAll(l, 'removed'), l);
+        continue;
+      }
+
+      if (l.nodeType === 3 && r.nodeType === 3) {
+        const [w1, w2] = diffWords(tokenizeWords(l.textContent), tokenizeWords(r.textContent));
+        const spanL = document.createElement('span');
+        const spanR = document.createElement('span');
+        spanL.innerHTML = w1;
+        spanR.innerHTML = w2;
+        el1.replaceChild(spanL, l);
+        el2.replaceChild(spanR, r);
+      }
+      else if (l.nodeType === 1 && r.nodeType === 1 && l.tagName === r.tagName) {
+        diffElements(l, r);
+      }
+      else {
+        el1.replaceChild(wrapAll(l, 'edited'), l);
+        el2.replaceChild(wrapAll(r, 'edited'), r);
       }
     }
-    return [leftResult, rightResult];
+  }
+
+  function wrapAll(node, cls) {
+    const span = document.createElement('mark');
+    span.className = cls;
+    span.appendChild(node.cloneNode(true));
+    return span;
   }
 
   window.compareContent = function() {
-    const l = document.getElementById("leftEditor");
-    const r = document.getElementById("rightEditor");
-    const lHTML = stripHighlights(l.innerHTML);
-    const rHTML = stripHighlights(r.innerHTML);
-    const [leftDiff, rightDiff] = compareHTML(lHTML, rHTML);
-    document.getElementById("leftResult").innerHTML = leftDiff;
-    document.getElementById("rightResult").innerHTML = rightDiff;
-    syncScroll(
-      document.getElementById("leftResult"),
-      document.getElementById("rightResult")
-    );
+    const lHTML = document.getElementById('leftEditor').innerHTML;
+    const rHTML = document.getElementById('rightEditor').innerHTML;
+
+    const lDiv = document.createElement('div');
+    const rDiv = document.createElement('div');
+    lDiv.innerHTML = lHTML;
+    rDiv.innerHTML = rHTML;
+
+    stripStyles(lDiv);
+    stripStyles(rDiv);
+
+    diffElements(lDiv, rDiv);
+
+    document.getElementById('leftResult').innerHTML = '';
+    document.getElementById('rightResult').innerHTML = '';
+    document.getElementById('leftResult').appendChild(lDiv);
+    document.getElementById('rightResult').appendChild(rDiv);
   };
 })();
