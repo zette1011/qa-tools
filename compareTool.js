@@ -39,8 +39,6 @@
   `;
   document.body.appendChild(modal);
 
-  const dictionary = new Set(["the","and","of","to","a","in","for","is","on","that","by","this","with","i","you","it","not","or","be","are","from","at","as","your","all","have","new","more","an","was","we","will","home","can","us","about","if","page","my","has","search","free","but","our","one","other","do","no","information","time","they","site","he","up","may","what","which","their","news","out","use","any","there","see","only","so","his","when","contact","here","business","who","web","also","now","help","get","pm","view","online","first","am","been","would","how","were","me","services","some","these","click","its","like","service","x","than","find"]);
-
   function stripHighlights(html) {
     const div = document.createElement('div');
     div.innerHTML = html;
@@ -59,29 +57,55 @@
     });
   }
 
-  function diffWords(a, b) {
-    const aw = a.split(/(\s+)/);
-    const bw = b.split(/(\s+)/);
-    const max = Math.max(aw.length, bw.length);
-    let outA = '', outB = '';
-    for (let i = 0; i < max; i++) {
-      const w1 = aw[i] || '';
-      const w2 = bw[i] || '';
-      if (w1 === w2) {
-        outA += w1;
-        outB += w2;
-      } else if (!w1 && w2) {
-        outA += '';
-        outB += `<mark class="added">${w2}</mark>`;
-      } else if (w1 && !w2) {
-        outA += `<mark class="removed">${w1}</mark>`;
-        outB += '';
-      } else {
-        outA += `<mark class="edited">${w1}</mark>`;
-        outB += `<mark class="edited">${w2}</mark>`;
+  function diffTextNodes(originalNode, compareNode) {
+    const walker1 = document.createTreeWalker(originalNode, NodeFilter.SHOW_TEXT);
+    const walker2 = document.createTreeWalker(compareNode, NodeFilter.SHOW_TEXT);
+
+    let textNode1 = walker1.nextNode();
+    let textNode2 = walker2.nextNode();
+
+    while (textNode1 || textNode2) {
+      const text1 = textNode1 ? textNode1.nodeValue : '';
+      const text2 = textNode2 ? textNode2.nodeValue : '';
+
+      const words1 = text1.split(/(\s+)/);
+      const words2 = text2.split(/(\s+)/);
+      const max = Math.max(words1.length, words2.length);
+
+      const span1 = document.createElement('span');
+      const span2 = document.createElement('span');
+
+      for (let i = 0; i < max; i++) {
+        const w1 = words1[i] || '';
+        const w2 = words2[i] || '';
+
+        const el1 = document.createElement('span');
+        const el2 = document.createElement('span');
+
+        if (w1 === w2) {
+          el1.textContent = w1;
+          el2.textContent = w2;
+        } else {
+          if (w1 && !w2) {
+            el1.innerHTML = `<mark class="removed">${w1}</mark>`;
+          } else if (!w1 && w2) {
+            el2.innerHTML = `<mark class="added">${w2}</mark>`;
+          } else {
+            el1.innerHTML = `<mark class="edited">${w1}</mark>`;
+            el2.innerHTML = `<mark class="edited">${w2}</mark>`;
+          }
+        }
+
+        span1.appendChild(el1);
+        span2.appendChild(el2);
       }
+
+      if (textNode1) textNode1.replaceWith(span1);
+      if (textNode2) textNode2.replaceWith(span2);
+
+      textNode1 = walker1.nextNode();
+      textNode2 = walker2.nextNode();
     }
-    return [outA, outB];
   }
 
   window.compareContent = function() {
@@ -90,22 +114,15 @@
     const lHTML = stripHighlights(l.innerHTML);
     const rHTML = stripHighlights(r.innerHTML);
 
-    const lLines = lHTML.split(/<div>|<br\s*\/?>|\n/).map(x => x.trim()).filter(Boolean);
-    const rLines = rHTML.split(/<div>|<br\s*\/?>|\n/).map(x => x.trim()).filter(Boolean);
-    const max = Math.max(lLines.length, rLines.length);
+    const lContainer = document.createElement('div');
+    const rContainer = document.createElement('div');
+    lContainer.innerHTML = lHTML;
+    rContainer.innerHTML = rHTML;
 
-    let lResult = "", rResult = "";
+    diffTextNodes(lContainer, rContainer);
 
-    for (let i = 0; i < max; i++) {
-      const lLine = lLines[i] || "";
-      const rLine = rLines[i] || "";
-      const [aDiff, bDiff] = diffWords(lLine, rLine);
-      lResult += `<div>${aDiff}</div>`;
-      rResult += `<div>${bDiff}</div>`;
-    }
-
-    document.getElementById("leftResult").innerHTML = lResult;
-    document.getElementById("rightResult").innerHTML = rResult;
+    document.getElementById("leftResult").innerHTML = lContainer.innerHTML;
+    document.getElementById("rightResult").innerHTML = rContainer.innerHTML;
 
     syncScroll(
       document.getElementById("leftResult"),
