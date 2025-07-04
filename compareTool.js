@@ -56,6 +56,7 @@
     .mark-edited { background: #fff3c4; }
     .mark-partial { background: #cce5ff; }
     .mark-misspelled { background: orange; }
+    h1, ol, ul, li, button { margin: 0; padding: auto;}
   `;
   document.head.appendChild(style);
 
