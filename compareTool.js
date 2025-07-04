@@ -80,14 +80,14 @@
   `;
   document.body.appendChild(modal);
 
-  window.compareContent = function () {
+ window.compareContent = function () {
   const stripStyles = (html) => {
     const div = document.createElement('div');
     div.innerHTML = html;
-  
+
     // Remove spans with internal GUIDs from Google Docs
     div.querySelectorAll('span[id^="docs-internal-guid"]').forEach(el => el.remove());
-  
+
     // Remove all comment nodes like <!-- x-tinymce/html -->
     const removeComments = (node) => {
       for (let i = node.childNodes.length - 1; i >= 0; i--) {
@@ -100,21 +100,19 @@
       }
     };
     removeComments(div);
-  
+
     // Remove inline styles and background colors
     div.querySelectorAll('*').forEach(el => {
       el.style.background = '';
       el.style.backgroundColor = '';
       el.removeAttribute('style');
     });
-  
+
     return div.innerHTML.trim();
   };
 
-  document.getElementById('leftResult').innerHTML = stripStyles(document.getElementById('leftEditor').innerHTML);
-  document.getElementById('rightResult').innerHTML = stripStyles(document.getElementById('rightEditor').innerHTML);
-
-  console.log('DIFFS:', diffs);
+  const leftText = stripStyles(document.getElementById('leftEditor').innerHTML);
+  const rightText = stripStyles(document.getElementById('rightEditor').innerHTML);
 
   const dmp = new diff_match_patch();
   const diffs = dmp.diff_main(leftText, rightText);
@@ -128,6 +126,7 @@
     }).join('');
   };
 
+  // Only display the highlighted diffs
   document.getElementById('leftResult').innerHTML = highlightDiff(diffs, false);
   document.getElementById('rightResult').innerHTML = highlightDiff(diffs, true);
 };
