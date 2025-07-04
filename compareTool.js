@@ -43,7 +43,7 @@
   function stripHighlights(html) {
     const div = document.createElement('div');
     div.innerHTML = html;
-    div.querySelectorAll('[style*="background"], span[style*="background-color"]').forEach(el => el.style.background = '');
+    div.querySelectorAll('[style*="background"], span[style*="background-color"], mark').forEach(el => el.replaceWith(...el.childNodes));
     return div.innerHTML;
   }
 
@@ -58,55 +58,58 @@
     });
   }
 
-  function diffTextNodes(originalNode, compareNode) {
-    const walker1 = document.createTreeWalker(originalNode, NodeFilter.SHOW_TEXT);
-    const walker2 = document.createTreeWalker(compareNode, NodeFilter.SHOW_TEXT);
+  function tokenize(text) {
+    return text.split(/(\b|\s+)/).filter(t => t.length > 0);
+  }
 
-    let textNode1 = walker1.nextNode();
-    let textNode2 = walker2.nextNode();
-
-    while (textNode1 || textNode2) {
-      const text1 = textNode1 ? textNode1.nodeValue.trim() : '';
-      const text2 = textNode2 ? textNode2.nodeValue.trim() : '';
-
-      const words1 = text1.split(/(\s+)/);
-      const words2 = text2.split(/(\s+)/);
-      const max = Math.max(words1.length, words2.length);
-
-      const span1 = document.createElement('span');
-      const span2 = document.createElement('span');
-
-      for (let i = 0; i < max; i++) {
-        const w1 = words1[i] || '';
-        const w2 = words2[i] || '';
-
-        const el1 = document.createElement('span');
-        const el2 = document.createElement('span');
-
-        if (w1 === w2) {
-          el1.textContent = w1;
-          el2.textContent = w2;
-        } else {
-          if (w1 && !w2) {
-            el1.innerHTML = `<mark class="removed">${w1}</mark>`;
-          } else if (!w1 && w2) {
-            el2.innerHTML = `<mark class="added">${w2}</mark>`;
-          } else {
-            el1.innerHTML = `<mark class="edited">${w1}</mark>`;
-            el2.innerHTML = `<mark class="edited">${w2}</mark>`;
-          }
-        }
-
-        span1.appendChild(el1);
-        span2.appendChild(el2);
+  function createDiffHTML(tokens1, tokens2, cls) {
+    const len = Math.max(tokens1.length, tokens2.length);
+    let html1 = '', html2 = '';
+    for (let i = 0; i < len; i++) {
+      const t1 = tokens1[i] || '';
+      const t2 = tokens2[i] || '';
+      if (t1 === t2) {
+        html1 += t1;
+        html2 += t2;
+      } else {
+        html1 += `<mark class="${cls}">${t1}</mark>`;
+        html2 += `<mark class="${cls}">${t2}</mark>`;
       }
-
-      if (textNode1) textNode1.replaceWith(span1);
-      if (textNode2) textNode2.replaceWith(span2);
-
-      textNode1 = walker1.nextNode();
-      textNode2 = walker2.nextNode();
     }
+    return [html1, html2];
+  }
+
+  function compareHTML(leftHTML, rightHTML) {
+    const lDiv = document.createElement('div');
+    const rDiv = document.createElement('div');
+    lDiv.innerHTML = leftHTML;
+    rDiv.innerHTML = rightHTML;
+
+    const lText = lDiv.innerText.trim().split(/\n+/);
+    const rText = rDiv.innerText.trim().split(/\n+/);
+
+    const max = Math.max(lText.length, rText.length);
+    let leftResult = '', rightResult = '';
+
+    for (let i = 0; i < max; i++) {
+      const line1 = lText[i] || '';
+      const line2 = rText[i] || '';
+      if (line1 === line2) {
+        leftResult += line1 + '<br>';
+        rightResult += line2 + '<br>';
+      } else if (!line1 && line2) {
+        rightResult += `<mark class="added">${line2}</mark><br>`;
+        leftResult += '<br>';
+      } else if (line1 && !line2) {
+        leftResult += `<mark class="removed">${line1}</mark><br>`;
+        rightResult += '<br>';
+      } else {
+        const [diffL, diffR] = createDiffHTML(tokenize(line1), tokenize(line2), 'edited');
+        leftResult += diffL + '<br>';
+        rightResult += diffR + '<br>';
+      }
+    }
+    return [leftResult, rightResult];
   }
 
   window.compareContent = function() {
@@ -114,17 +117,9 @@
     const r = document.getElementById("rightEditor");
     const lHTML = stripHighlights(l.innerHTML);
     const rHTML = stripHighlights(r.innerHTML);
-
-    const lContainer = document.createElement('div');
-    const rContainer = document.createElement('div');
-    lContainer.innerHTML = lHTML;
-    rContainer.innerHTML = rHTML;
-
-    diffTextNodes(lContainer, rContainer);
-
-    document.getElementById("leftResult").innerHTML = lContainer.innerHTML;
-    document.getElementById("rightResult").innerHTML = rContainer.innerHTML;
-
+    const [leftDiff, rightDiff] = compareHTML(lHTML, rHTML);
+    document.getElementById("leftResult").innerHTML = leftDiff;
+    document.getElementById("rightResult").innerHTML = rightDiff;
     syncScroll(
       document.getElementById("leftResult"),
       document.getElementById("rightResult")
