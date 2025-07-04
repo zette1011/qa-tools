@@ -13,6 +13,7 @@
     #comparisonResults{display:flex;gap:10px;height:100%;flex:1;overflow:auto}
     .comparison-box{flex:1;border:1px solid #ccc;padding:10px;background:#fff;overflow:auto;font-family:Arial,sans-serif;white-space:normal;line-height:1.6;height:100%}
     mark.added{background:#c8facc}mark.removed{background:#ffc8c8}mark.edited{background:#fff3c4}mark.partial{background:#cce5ff}mark.misspelled{background:orange}
+    ul, ol { margin-left: 1.5em; }
   `;
   document.head.appendChild(style);
 
@@ -65,8 +66,8 @@
     let textNode2 = walker2.nextNode();
 
     while (textNode1 || textNode2) {
-      const text1 = textNode1 ? textNode1.nodeValue : '';
-      const text2 = textNode2 ? textNode2.nodeValue : '';
+      const text1 = textNode1 ? textNode1.nodeValue.trim() : '';
+      const text2 = textNode2 ? textNode2.nodeValue.trim() : '';
 
       const words1 = text1.split(/(\s+)/);
       const words2 = text2.split(/(\s+)/);
