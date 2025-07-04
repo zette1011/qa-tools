@@ -10,7 +10,7 @@
     #compareModal .editor{flex:1;border:1px solid #ccc;padding:10px;background:#fefefe;overflow:auto;font-family:Arial,sans-serif}
     #compareModal .editor[contenteditable=true]:focus{outline:2px solid #4a90e2}
     #compareModal .results{display:flex;gap:10px;margin-top:10px;flex:1;overflow:auto}
-    #compareModal .result{flex:1;border:1px solid #ccc;padding:10px;background:#fff;white-space:pre-wrap;overflow:auto;font-family:Arial,sans-serif}
+    #compareModal .result{flex:1;border:1px solid #ccc;padding:10px;background:#fff;overflow:auto;font-family:Arial,sans-serif}
     mark.added{background:#c8facc}mark.removed{background:#ffc8c8}mark.edited{background:#fff3c4}mark.partial{background:#cce5ff}mark.misspelled{background:orange}
   `;
   document.head.appendChild(style);
@@ -23,8 +23,8 @@
       <button onclick="document.body.removeChild(document.getElementById('compareModal'))">✖ Close</button>
     </div>
     <div class="modal-body">
-      <div id="leftEditor" class="editor" contenteditable="true" placeholder="Paste Google Docs content here"></div>
-      <div id="rightEditor" class="editor" contenteditable="true" placeholder="Paste Website content here"></div>
+      <div id="leftEditor" class="editor" contenteditable="true"></div>
+      <div id="rightEditor" class="editor" contenteditable="true"></div>
     </div>
     <div class="modal-footer">
       <button onclick="compareContent()">🔍 Compare</button>
@@ -36,67 +36,65 @@
   `;
   document.body.appendChild(modal);
 
-  function sanitizeClone(node) {
-    const clone = node.cloneNode(true);
-    clone.querySelectorAll("mark").forEach(m => m.replaceWith(...m.childNodes));
+  function cloneWithStyle(el) {
+    const clone = el.cloneNode(true);
+    clone.querySelectorAll('mark').forEach(m => m.replaceWith(...m.childNodes));
     return clone;
   }
 
-  function getWords(node) {
-    const text = node.textContent;
-    return text ? text.trim().split(/(\s+)/) : [];
-  }
+  function highlightDifferences(el1, el2, resultEl1, resultEl2) {
+    const clone1 = cloneWithStyle(el1);
+    const clone2 = cloneWithStyle(el2);
 
-  function diffWords(aWords, bWords) {
-    const diffs = [];
-    const len = Math.max(aWords.length, bWords.length);
-    for (let i = 0; i < len; i++) {
-      const a = aWords[i] || "";
-      const b = bWords[i] || "";
-      if (a === b) {
-        diffs.push([a, null]);
-      } else if (!a) {
-        diffs.push([b, "added"]);
-      } else if (!b) {
-        diffs.push([a, "removed"]);
-      } else {
-        diffs.push([a, "edited"]);
+    const walker1 = document.createTreeWalker(clone1, NodeFilter.SHOW_TEXT, null);
+    const walker2 = document.createTreeWalker(clone2, NodeFilter.SHOW_TEXT, null);
+
+    let node1 = walker1.nextNode();
+    let node2 = walker2.nextNode();
+
+    while (node1 || node2) {
+      if (!node1 && node2) {
+        const mark = document.createElement('mark');
+        mark.className = 'added';
+        mark.textContent = node2.textContent;
+        node2.parentNode.replaceChild(mark, node2);
+        node2 = walker2.nextNode();
+        continue;
       }
+      if (node1 && !node2) {
+        const mark = document.createElement('mark');
+        mark.className = 'removed';
+        mark.textContent = node1.textContent;
+        node1.parentNode.replaceChild(mark, node1);
+        node1 = walker1.nextNode();
+        continue;
+      }
+      if (node1.textContent !== node2.textContent) {
+        const mark1 = document.createElement('mark');
+        mark1.className = 'edited';
+        mark1.textContent = node1.textContent;
+        node1.parentNode.replaceChild(mark1, node1);
+
+        const mark2 = document.createElement('mark');
+        mark2.className = 'edited';
+        mark2.textContent = node2.textContent;
+        node2.parentNode.replaceChild(mark2, node2);
+      }
+      node1 = walker1.nextNode();
+      node2 = walker2.nextNode();
     }
-    return diffs;
-  }
 
-  function renderDiff(container, node, diffs) {
-    container.innerHTML = '';
-    const span = document.createElement('span');
-    diffs.forEach(([word, type]) => {
-      if (!type) {
-        span.append(word);
-      } else {
-        const m = document.createElement("mark");
-        m.className = type;
-        m.textContent = word;
-        span.appendChild(m);
-      }
-    });
-    container.appendChild(span);
+    resultEl1.innerHTML = '';
+    resultEl2.innerHTML = '';
+    resultEl1.appendChild(clone1);
+    resultEl2.appendChild(clone2);
   }
 
   window.compareContent = function() {
-    const lEditor = document.getElementById("leftEditor");
-    const rEditor = document.getElementById("rightEditor");
-    const lClone = sanitizeClone(lEditor);
-    const rClone = sanitizeClone(rEditor);
-
-    const lWords = getWords(lClone);
-    const rWords = getWords(rClone);
-    const lDiff = diffWords(lWords, rWords);
-    const rDiff = diffWords(rWords, lWords);
-
-    const lResult = document.getElementById("leftResult");
-    const rResult = document.getElementById("rightResult");
-
-    renderDiff(lResult, lClone, lDiff);
-    renderDiff(rResult, rClone, rDiff);
+    const left = document.getElementById("leftEditor");
+    const right = document.getElementById("rightEditor");
+    const leftResult = document.getElementById("leftResult");
+    const rightResult = document.getElementById("rightResult");
+    highlightDifferences(left, right, leftResult, rightResult);
   };
 })();
