@@ -3,17 +3,83 @@
 
   const style = document.createElement('style');
   style.textContent = `
-    #compareModal{position:fixed;top:20px;left:20px;right:20px;bottom:20px;z-index:999999;background:#fff;box-shadow:0 0 10px #000;display:flex;flex-direction:column;font-family:Arial,sans-serif}
-    #compareModal .modal-header{background:#222;color:#fff;padding:10px;display:flex;justify-content:space-between;align-items:center}
-    #compareModal .modal-body{flex:1;display:flex;padding:10px;gap:10px;overflow:auto}
-    #compareModal .modal-footer{padding:10px;border-top:1px solid #ccc;text-align:right}
-    #compareModal .editor{flex:1;border:1px solid #ccc;padding:10px;background:#fefefe;overflow:auto;font-family:Arial,sans-serif}
-    #compareModal .editor[contenteditable=true]:focus{outline:2px solid #4a90e2}
-    #compareModal .results{display:flex;gap:10px;margin-top:10px;flex:1;overflow:auto}
-    #compareModal .result{flex:1;border:1px solid #ccc;padding:10px;background:#fff;overflow:auto;font-family:Arial,sans-serif}
-    mark.added{background:#c8facc}mark.removed{background:#ffc8c8}mark.edited{background:#fff3c4}mark.partial{background:#cce5ff}mark.misspelled{background:orange}
-    .result ul{padding-left:1.4em;margin-left:0}
-    .result li{margin-bottom:0.4em;list-style-type:disc}
+    #compareModal {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      right: 20px;
+      bottom: 20px;
+      z-index: 999999;
+      background: #fff;
+      box-shadow: 0 0 10px #000;
+      display: flex;
+      flex-direction: column;
+      font-family: Arial, sans-serif;
+    }
+    #compareModal .modal-header {
+      background: #222;
+      color: #fff;
+      padding: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    #compareModal .modal-header button {
+      background: transparent;
+      border: none;
+      color: #fff;
+      font-size: 18px;
+      cursor: pointer;
+    }
+    #compareModal .modal-body {
+      flex: 1;
+      display: flex;
+      gap: 10px;
+      padding: 10px;
+      overflow: auto;
+    }
+    #compareModal .editor {
+      flex: 1;
+      border: 1px solid #ccc;
+      padding: 10px;
+      background: #fefefe;
+      overflow: auto;
+      font-family: Arial, sans-serif;
+    }
+    #compareModal .editor[contenteditable=true]:focus {
+      outline: 2px solid #4a90e2;
+    }
+    #compareModal .result {
+      flex: 1;
+      border: 1px solid #ccc;
+      padding: 10px;
+      background: #f9f9f9;
+      overflow: auto;
+      font-family: Arial, sans-serif;
+    }
+    #compareModal .modal-footer {
+      padding: 10px;
+      border-top: 1px solid #ccc;
+      text-align: right;
+    }
+    #compareModal .editor ul,
+    #compareModal .editor ol,
+    #compareModal .result ul,
+    #compareModal .result ol {
+      padding-left: 1.5em;
+      list-style-position: inside;
+      margin: 0 0 1em 0;
+    }
+    #compareModal .editor li,
+    #compareModal .result li {
+      list-style-type: disc;
+      margin-left: 0.5em;
+    }
+    mark.added { background: #c8facc; }
+    mark.removed { background: #ffc8c8; }
+    mark.edited { background: #fff3c4; }
+    mark.partial { background: #cce5ff; }
+    mark.misspelled { background: orange; }
   `;
   document.head.appendChild(style);
 
@@ -25,87 +91,57 @@
       <button onclick="document.body.removeChild(document.getElementById('compareModal'))">✖ Close</button>
     </div>
     <div class="modal-body">
-      <div id="leftEditor" class="editor" contenteditable="true"></div>
-      <div id="rightEditor" class="editor" contenteditable="true"></div>
+      <div id="leftEditor" class="editor" contenteditable="true" placeholder="Paste Google Docs content here"></div>
+      <div id="rightEditor" class="editor" contenteditable="true" placeholder="Paste Website content here"></div>
     </div>
     <div class="modal-footer">
       <button onclick="compareContent()">🔍 Compare</button>
     </div>
-    <div class="results">
+    <div class="modal-body">
       <div id="leftResult" class="result"></div>
       <div id="rightResult" class="result"></div>
     </div>
   `;
   document.body.appendChild(modal);
 
-  function stripHighlights(node) {
-    node.querySelectorAll('[style*="background"], span[style], font, u').forEach(n => {
-      const clean = document.createElement('span');
-      clean.innerHTML = n.innerHTML;
-      n.replaceWith(...clean.childNodes);
-    });
-  }
+  // Helper function to remove highlight or span styles from pasted content
+  const sanitizeHTML = html =>
+    html.replace(/(<[^>]+)(style="[^"]*background[^"]*")([^>]*>)/gi, '$1$3')
+        .replace(/<span[^>]*>(.*?)<\/span>/gi, '$1');
 
-  function cloneWithStyle(el) {
-    const clone = el.cloneNode(true);
-    stripHighlights(clone);
-    clone.querySelectorAll('mark').forEach(m => m.replaceWith(...m.childNodes));
-    return clone;
-  }
+  window.compareContent = function () {
+    const l = document.getElementById("leftEditor");
+    const r = document.getElementById("rightEditor");
+    const lResult = document.getElementById("leftResult");
+    const rResult = document.getElementById("rightResult");
 
-  function highlightDifferences(el1, el2, resultEl1, resultEl2) {
-    const clone1 = cloneWithStyle(el1);
-    const clone2 = cloneWithStyle(el2);
+    const lHTML = sanitizeHTML(l.innerHTML.trim());
+    const rHTML = sanitizeHTML(r.innerHTML.trim());
 
-    const walker1 = document.createTreeWalker(clone1, NodeFilter.SHOW_TEXT, null);
-    const walker2 = document.createTreeWalker(clone2, NodeFilter.SHOW_TEXT, null);
+    const lLines = lHTML.split(/<br\s*\/?>|\n/);
+    const rLines = rHTML.split(/<br\s*\/?>|\n/);
+    const max = Math.max(lLines.length, rLines.length);
 
-    let node1 = walker1.nextNode();
-    let node2 = walker2.nextNode();
+    let leftOut = "", rightOut = "";
 
-    while (node1 || node2) {
-      if (!node1 && node2) {
-        const mark = document.createElement('mark');
-        mark.className = 'added';
-        mark.textContent = node2.textContent;
-        node2.parentNode.replaceChild(mark, node2);
-        node2 = walker2.nextNode();
-        continue;
+    for (let i = 0; i < max; i++) {
+      const left = lLines[i] || "", right = rLines[i] || "";
+      if (!left && right) {
+        leftOut += `<br>`;
+        rightOut += `<mark class="added">${right}</mark><br>`;
+      } else if (left && !right) {
+        leftOut += `<mark class="removed">${left}</mark><br>`;
+        rightOut += `<br>`;
+      } else if (left !== right) {
+        leftOut += `<mark class="edited">${left}</mark><br>`;
+        rightOut += `<mark class="edited">${right}</mark><br>`;
+      } else {
+        leftOut += `${left}<br>`;
+        rightOut += `${right}<br>`;
       }
-      if (node1 && !node2) {
-        const mark = document.createElement('mark');
-        mark.className = 'removed';
-        mark.textContent = node1.textContent;
-        node1.parentNode.replaceChild(mark, node1);
-        node1 = walker1.nextNode();
-        continue;
-      }
-      if (node1.textContent !== node2.textContent) {
-        const mark1 = document.createElement('mark');
-        mark1.className = 'edited';
-        mark1.textContent = node1.textContent;
-        node1.parentNode.replaceChild(mark1, node1);
-
-        const mark2 = document.createElement('mark');
-        mark2.className = 'edited';
-        mark2.textContent = node2.textContent;
-        node2.parentNode.replaceChild(mark2, node2);
-      }
-      node1 = walker1.nextNode();
-      node2 = walker2.nextNode();
     }
 
-    resultEl1.innerHTML = '';
-    resultEl2.innerHTML = '';
-    resultEl1.appendChild(clone1);
-    resultEl2.appendChild(clone2);
-  }
-
-  window.compareContent = function() {
-    const left = document.getElementById("leftEditor");
-    const right = document.getElementById("rightEditor");
-    const leftResult = document.getElementById("leftResult");
-    const rightResult = document.getElementById("rightResult");
-    highlightDifferences(left, right, leftResult, rightResult);
+    lResult.innerHTML = leftOut;
+    rResult.innerHTML = rightOut;
   };
 })();
