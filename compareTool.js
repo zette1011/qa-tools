@@ -35,13 +35,21 @@
 
   const dictionary = new Set(["the","and","of","to","a","in","for","is","on","that","by","this","with","i","you","it","not","or","be","are","from","at","as","your","all","have","new","more","an","was","we","will","home","can","us","about","if","page","my","has","search","free","but","our","one","other","do","no","information","time","they","site","he","up","may","what","which","their","news","out","use","any","there","see","only","so","his","when","contact","here","business","who","web","also","now","help","get","pm","view","online","first","am","been","would","how","were","me","services","some","these","click","its","like","service","x","than","find"]);
 
-  window.compareContent = function() {
-    const cleanHTML = html => html.replace(/<span[^>]*style=["']?background[^>]*?>.*?<\/span>/gi, '').replace(/<[^>]*>/g, '').trim();
+  function stripHighlights(html) {
+    const div = document.createElement('div');
+    div.innerHTML = html;
+    div.querySelectorAll('[style*="background"]').forEach(el => el.style.background = '');
+    return div.innerHTML;
+  }
 
+  window.compareContent = function() {
     const l = document.getElementById("leftEditor");
     const r = document.getElementById("rightEditor");
-    const lLines = cleanHTML(l.innerHTML).split(/\n+/);
-    const rLines = cleanHTML(r.innerHTML).split(/\n+/);
+    const lHTML = stripHighlights(l.innerHTML);
+    const rHTML = stripHighlights(r.innerHTML);
+
+    const lLines = lHTML.split(/<div>|<br\s*\/?>|\n/).map(x => x.trim()).filter(Boolean);
+    const rLines = rHTML.split(/<div>|<br\s*\/?>|\n/).map(x => x.trim()).filter(Boolean);
     const max = Math.max(lLines.length, rLines.length);
 
     let lResult = "", rResult = "";
@@ -51,11 +59,11 @@
       const rLine = rLines[i] || "";
 
       if (!lLine && rLine) {
-        lResult += `<br>`;
-        rResult += `<mark class="added">${rLine}</mark><br>`;
+        lResult += `<div></div>`;
+        rResult += `<div><mark class="added">${rLine}</mark></div>`;
       } else if (lLine && !rLine) {
-        lResult += `<mark class="removed">${lLine}</mark><br>`;
-        rResult += `<br>`;
+        lResult += `<div><mark class="removed">${lLine}</mark></div>`;
+        rResult += `<div></div>`;
       } else if (lLine !== rLine) {
         let d = 0;
         for (let j = 0; j < Math.min(lLine.length, rLine.length); j++) {
@@ -63,11 +71,11 @@
         }
         let ratio = d / Math.max(lLine.length, rLine.length);
         let cls = ratio < 0.3 ? "partial" : "edited";
-        lResult += `<mark class="${cls}">${lLine}</mark><br>`;
-        rResult += `<mark class="${cls}">${rLine}</mark><br>`;
+        lResult += `<div><mark class="${cls}">${lLine}</mark></div>`;
+        rResult += `<div><mark class="${cls}">${rLine}</mark></div>`;
       } else {
-        lResult += `${lLine}<br>`;
-        rResult += `${rLine}<br>`;
+        lResult += `<div>${lLine}</div>`;
+        rResult += `<div>${rLine}</div>`;
       }
     }
 
