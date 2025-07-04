@@ -7,11 +7,11 @@
     #compareModal .modal-header{background:#222;color:#fff;padding:10px;display:flex;justify-content:space-between;align-items:center}
     #compareModal .modal-body{flex:1;display:flex;flex-direction:column;padding:10px;gap:10px;overflow:hidden}
     #compareModal .editors{flex:1;display:flex;gap:10px;overflow:auto}
-    #compareModal .editor{flex:1;border:1px solid #ccc;padding:10px;background:#fefefe;overflow:auto;font-family:Arial,sans-serif;white-space:pre-wrap}
+    #compareModal .editor{flex:1;border:1px solid #ccc;padding:10px;background:#fefefe;overflow:auto;font-family:Arial,sans-serif;white-space:normal;line-height:1.6}
     #compareModal .editor[contenteditable=true]:focus{outline:2px solid #4a90e2}
     #compareModal .modal-footer{padding:10px;border-top:1px solid #ccc;text-align:right}
     #comparisonResults{display:flex;gap:10px;height:100%;flex:1;overflow:auto}
-    .comparison-box{flex:1;border:1px solid #ccc;padding:10px;background:#fff;overflow:auto;font-family:Arial,sans-serif;white-space:pre-wrap;height:100%}
+    .comparison-box{flex:1;border:1px solid #ccc;padding:10px;background:#fff;overflow:auto;font-family:Arial,sans-serif;white-space:normal;line-height:1.6;height:100%}
     mark.added{background:#c8facc}mark.removed{background:#ffc8c8}mark.edited{background:#fff3c4}mark.partial{background:#cce5ff}mark.misspelled{background:orange}
   `;
   document.head.appendChild(style);
