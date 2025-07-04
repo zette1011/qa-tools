@@ -59,6 +59,31 @@
     });
   }
 
+  function diffWords(a, b) {
+    const aw = a.split(/(\s+)/);
+    const bw = b.split(/(\s+)/);
+    const max = Math.max(aw.length, bw.length);
+    let outA = '', outB = '';
+    for (let i = 0; i < max; i++) {
+      const w1 = aw[i] || '';
+      const w2 = bw[i] || '';
+      if (w1 === w2) {
+        outA += w1;
+        outB += w2;
+      } else if (!w1 && w2) {
+        outA += '';
+        outB += `<mark class="added">${w2}</mark>`;
+      } else if (w1 && !w2) {
+        outA += `<mark class="removed">${w1}</mark>`;
+        outB += '';
+      } else {
+        outA += `<mark class="edited">${w1}</mark>`;
+        outB += `<mark class="edited">${w2}</mark>`;
+      }
+    }
+    return [outA, outB];
+  }
+
   window.compareContent = function() {
     const l = document.getElementById("leftEditor");
     const r = document.getElementById("rightEditor");
@@ -74,26 +99,9 @@
     for (let i = 0; i < max; i++) {
       const lLine = lLines[i] || "";
       const rLine = rLines[i] || "";
-
-      if (!lLine && rLine) {
-        lResult += `<div></div>`;
-        rResult += `<div><mark class="added">${rLine}</mark></div>`;
-      } else if (lLine && !rLine) {
-        lResult += `<div><mark class="removed">${lLine}</mark></div>`;
-        rResult += `<div></div>`;
-      } else if (lLine !== rLine) {
-        let d = 0;
-        for (let j = 0; j < Math.min(lLine.length, rLine.length); j++) {
-          if (lLine[j] !== rLine[j]) d++;
-        }
-        let ratio = d / Math.max(lLine.length, rLine.length);
-        let cls = ratio < 0.3 ? "partial" : "edited";
-        lResult += `<div><mark class="${cls}">${lLine}</mark></div>`;
-        rResult += `<div><mark class="${cls}">${rLine}</mark></div>`;
-      } else {
-        lResult += `<div>${lLine}</div>`;
-        rResult += `<div>${rLine}</div>`;
-      }
+      const [aDiff, bDiff] = diffWords(lLine, rLine);
+      lResult += `<div>${aDiff}</div>`;
+      rResult += `<div>${bDiff}</div>`;
     }
 
     document.getElementById("leftResult").innerHTML = lResult;
