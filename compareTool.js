@@ -12,6 +12,8 @@
     #compareModal .results{display:flex;gap:10px;margin-top:10px;flex:1;overflow:auto}
     #compareModal .result{flex:1;border:1px solid #ccc;padding:10px;background:#fff;overflow:auto;font-family:Arial,sans-serif}
     mark.added{background:#c8facc}mark.removed{background:#ffc8c8}mark.edited{background:#fff3c4}mark.partial{background:#cce5ff}mark.misspelled{background:orange}
+    .result ul{padding-left:1.4em;margin-left:0}
+    .result li{margin-bottom:0.4em;list-style-type:disc}
   `;
   document.head.appendChild(style);
 
@@ -36,8 +38,17 @@
   `;
   document.body.appendChild(modal);
 
+  function stripHighlights(node) {
+    node.querySelectorAll('[style*="background"], span[style], font, u').forEach(n => {
+      const clean = document.createElement('span');
+      clean.innerHTML = n.innerHTML;
+      n.replaceWith(...clean.childNodes);
+    });
+  }
+
   function cloneWithStyle(el) {
     const clone = el.cloneNode(true);
+    stripHighlights(clone);
     clone.querySelectorAll('mark').forEach(m => m.replaceWith(...m.childNodes));
     return clone;
   }
