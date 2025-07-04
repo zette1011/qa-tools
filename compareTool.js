@@ -111,9 +111,10 @@
     return div.innerHTML.trim();
   };
 
+  document.getElementById('leftResult').innerHTML = stripStyles(document.getElementById('leftEditor').innerHTML);
+  document.getElementById('rightResult').innerHTML = stripStyles(document.getElementById('rightEditor').innerHTML);
 
-  const leftText = stripStyles(document.getElementById('leftEditor').innerHTML);
-  const rightText = stripStyles(document.getElementById('rightEditor').innerHTML);
+  console.log('DIFFS:', diffs);
 
   const dmp = new diff_match_patch();
   const diffs = dmp.diff_main(leftText, rightText);
